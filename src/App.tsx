@@ -120,8 +120,9 @@ export default function App() {
   const [showCorrectMark, setShowCorrectMark] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const markTimerRef = useRef<number | null>(null);
-  const isComposingRef = useRef<boolean>(false); // 変換中フラグ
+  const isComposingRef = useRef<boolean>(false);
 
+  // カタカナをひらがなに変換するヘルパー
   const toHiragana = (str: string) => {
     return str.replace(/[\u30a1-\u30f6]/g, (match) => {
       const chr = match.charCodeAt(0) - 0x60;
@@ -183,27 +184,27 @@ export default function App() {
     return () => clearInterval(timer);
   }, [gameState]);
 
-  // 入力中の値の管理
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
   };
 
-  // エンターキー（確定キー）が押された時だけ判定する
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // 変換確定中のエンターは無視する（iOSでの二重発火防止）
     if (e.nativeEvent.isComposing || isComposingRef.current) {
       return;
     }
 
     if (e.key === 'Enter') {
-      e.preventDefault(); // デフォルトの挙動を抑制
+      e.preventDefault();
 
       const cleanInput = inputValue.replace(/\s+/g, '');
       const normalizedInput = toHiragana(cleanInput);
+      const normalizedReading = toHiragana(currentFood.reading);
       const normalizedDisplay = toHiragana(currentFood.display);
 
+      // ① 登録されている読み仮名と一致
+      // ② 漢字表示そのまま、またはそれをひらがな/カタカナにしたものと一致（無変換対策）
       if (
-        normalizedInput === currentFood.reading ||
+        normalizedInput === normalizedReading ||
         cleanInput === currentFood.display ||
         normalizedInput === normalizedDisplay
       ) {
@@ -234,7 +235,8 @@ export default function App() {
             <ul className="rules">
               <li>制限時間：60秒</li>
               <li>1フレーズ完成：+10点</li>
-              <li>ひらがな・漢字どちらでもOK</li>
+              <li>漢字はひらがな・カタカナ（無変換）でもOK</li>
+              <li>最後にエンター（確定）キーで判定</li>
             </ul>
             <button className="primary-btn" onClick={startGame}>
               スタート
