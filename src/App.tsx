@@ -117,7 +117,6 @@ export default function App() {
   const [inputValue, setInputValue] = useState<string>('');
   const [clearedCount, setClearedCount] = useState<number>(0);
 
-  // 追加: 正解の「〇」表示と、IME完全リセット用の問題キー
   const [showCorrectMark, setShowCorrectMark] = useState<boolean>(false);
   const [questionKey, setQuestionKey] = useState<number>(0);
 
@@ -128,11 +127,11 @@ export default function App() {
     const candidates = FOOD_LIST.filter((item) => item.display !== excludeDisplay);
     const randomIndex = Math.floor(Math.random() * candidates.length);
     setCurrentFood(candidates[randomIndex]);
-    // input要素を強制的に再マウントさせてモバイルIMEの未確定文字を完全に消去する
+    setInputValue('');
+    // input要素を再マウントさせてIMEの内部バッファを強制クリア
     setQuestionKey((prev) => prev + 1);
   };
 
-  // 問題が切り替わるたびに新しいinputへフォーカスを当てる
   useEffect(() => {
     if (gameState === 'playing') {
       inputRef.current?.focus();
@@ -196,9 +195,16 @@ export default function App() {
     ) {
       setScore((prev) => prev + 10);
       setClearedCount((prev) => prev + 1);
+      
+      // ★iPhone対策: 正解した瞬間に一度フォーカスを外してIMEのバッファを強制確定・リセットする
+      inputRef.current?.blur();
       setInputValue('');
       triggerCorrectMark();
-      pickNextFood(currentFood.display);
+
+      // 少しだけ遅らせて次の問題へ切り替えることで確実に空欄にする
+      setTimeout(() => {
+        pickNextFood(currentFood.display);
+      }, 100);
     }
   };
 
@@ -265,6 +271,7 @@ export default function App() {
             <button
               className="skip-btn"
               onClick={() => {
+                inputRef.current?.blur();
                 setInputValue('');
                 pickNextFood(currentFood.display);
               }}
