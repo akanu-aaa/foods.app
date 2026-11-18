@@ -184,7 +184,7 @@ export default function App() {
             <div className="badge">FOOD FLICK GAME</div>
             <h1 className="title">グルメフリック！</h1>
             <p className="description">
-              ランダムに出題される100種類の食べ物を素早くフリック入力しよう！
+              素早くフリック入力しよう！
             </p>
             <ul className="rules">
               <li>制限時間：60秒</li>
@@ -192,7 +192,7 @@ export default function App() {
               <li>ひらがな・漢字どちらでもOK</li>
             </ul>
             <button className="primary-btn" onClick={startGame}>
-              ゲームスタート
+              スタート
             </button>
           </div>
         )}
