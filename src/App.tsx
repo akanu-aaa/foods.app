@@ -46,7 +46,7 @@ const FOOD_LIST: FoodItem[] = [
   { display: 'ブリの照り焼き', reading: 'ぶりのてりやき' },
   { display: 'アジフライ', reading: 'あじふらい' },
   { display: 'カキフライ', reading: 'かきふらい' },
-  { display: 'エビフライ', reading: 'えびふらい' },
+  { display: 'エビフライ', reading: 'エビフライ' },
   { display: 'コロッケ', reading: 'ころっけ' },
   { display: 'メンチカツ', reading: 'めんちかつ' },
   { display: 'すき焼き', reading: 'すきやき' },
@@ -130,27 +130,21 @@ export default function App() {
   };
 
   const loadNextFood = (excludeDisplay?: string) => {
-    // 1. まず現在の入力欄から強制的にフォーカスを外し、キーボードのバッファをリセットする
-    if (inputRef.current) {
-      inputRef.current.value = '';
-      inputRef.current.blur();
-    }
-
     const candidates = FOOD_LIST.filter((item) => item.display !== excludeDisplay);
     const randomIndex = Math.floor(Math.random() * candidates.length);
     setCurrentFood(candidates[randomIndex]);
     
-    // 2. インプット要素を完全に再生成するキーを更新
+    // 新しい入力欄へ切り替え
     setQuestionKey((prev) => prev + 1);
-
-    // 3. 一瞬だけ遅らせてから新しい入力欄にフォーカスを当て直す（iPhoneで確実に空欄にするため）
-    setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.value = '';
-        inputRef.current.focus();
-      }
-    }, 50);
   };
+
+  // 問題が変わるたびに自動でフォーカス（カーソル）を当てる
+  useEffect(() => {
+    if (gameState === 'playing' && inputRef.current) {
+      inputRef.current.value = '';
+      inputRef.current.focus();
+    }
+  }, [questionKey, gameState]);
 
   const triggerCorrectMark = () => {
     if (markTimerRef.current) {
