@@ -37,7 +37,7 @@ const FOOD_LIST: FoodItem[] = [
   { display: '海鮮丼', reading: 'かいせんどん' },
   { display: 'マグロの握り寿司', reading: 'まぐろのにぎりずし' },
   { display: 'サーモンアボカド丼', reading: 'さーもんあぼかどどん' },
-  { display: 'お好み焼き', reading: 'おこのみやき' },
+  { display: 'お好み焼き', reading: 'おこうみやき' },
   { display: 'たこ焼き', reading: 'たこやき' },
   { display: '焼きそば', reading: 'やきそば' },
   { display: 'もんじゃ焼き', reading: 'もんじゃやき' },
@@ -129,20 +129,28 @@ export default function App() {
     });
   };
 
-  const pickNextFood = (excludeDisplay?: string) => {
+  const loadNextFood = (excludeDisplay?: string) => {
+    // 1. まず現在の入力欄から強制的にフォーカスを外し、キーボードのバッファをリセットする
+    if (inputRef.current) {
+      inputRef.current.value = '';
+      inputRef.current.blur();
+    }
+
     const candidates = FOOD_LIST.filter((item) => item.display !== excludeDisplay);
     const randomIndex = Math.floor(Math.random() * candidates.length);
     setCurrentFood(candidates[randomIndex]);
-    // keyを変更して入力欄のDOMを完全に新品に置き換える
+    
+    // 2. インプット要素を完全に再生成するキーを更新
     setQuestionKey((prev) => prev + 1);
-  };
 
-  // 描画直後に新しい入力欄へフォーカス
-  useEffect(() => {
-    if (gameState === 'playing' && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [questionKey, gameState]);
+    // 3. 一瞬だけ遅らせてから新しい入力欄にフォーカスを当て直す（iPhoneで確実に空欄にするため）
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.value = '';
+        inputRef.current.focus();
+      }
+    }, 50);
+  };
 
   const triggerCorrectMark = () => {
     if (markTimerRef.current) {
@@ -159,7 +167,7 @@ export default function App() {
     setClearedCount(0);
     setTimeLeft(60);
     setShowCorrectMark(false);
-    pickNextFood();
+    loadNextFood();
     setGameState('playing');
   };
 
@@ -180,7 +188,6 @@ export default function App() {
     return () => clearInterval(timer);
   }, [gameState]);
 
-  // 入力値の監視（非制御コンポーネントに近いアプローチ）
   const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
     const val = e.currentTarget.value;
     const cleanInput = val.replace(/\s+/g, '');
@@ -195,10 +202,9 @@ export default function App() {
       setScore((prev) => prev + 10);
       setClearedCount((prev) => prev + 1);
 
-      // 正解した瞬間にDOM要素の値を強制クリアして次へ
       e.currentTarget.value = '';
       triggerCorrectMark();
-      pickNextFood(currentFood.display);
+      loadNextFood(currentFood.display);
     }
   };
 
@@ -247,7 +253,6 @@ export default function App() {
             </div>
 
             <div className="input-area">
-              {/* keyを変更することで正解時に古いinput要素を完全破棄し、新しい綺麗なinputを生成する */}
               <input
                 key={questionKey}
                 ref={inputRef}
@@ -267,7 +272,7 @@ export default function App() {
               className="skip-btn"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
-                pickNextFood(currentFood.display);
+                loadNextFood(currentFood.display);
               }}
             >
               パスする（0点）
