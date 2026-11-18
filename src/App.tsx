@@ -115,13 +115,12 @@ export default function App() {
   const [score, setScore] = useState<number>(0);
   const [currentFood, setCurrentFood] = useState<FoodItem>(FOOD_LIST[0]);
   const [clearedCount, setClearedCount] = useState<number>(0);
+  const [inputValue, setInputValue] = useState<string>('');
 
   const [showCorrectMark, setShowCorrectMark] = useState<boolean>(false);
-  const [questionKey, setQuestionKey] = useState<number>(0);
-  const [isInputVisible, setIsInputVisible] = useState<boolean>(true); // 入発火用の安全スイッチ
-
   const inputRef = useRef<HTMLInputElement>(null);
   const markTimerRef = useRef<number | null>(null);
+  const isComposingRef = useRef<boolean>(false); // 変換中フラグ
 
   const toHiragana = (str: string) => {
     return str.replace(/[\u30a1-\u30f6]/g, (match) => {
@@ -131,25 +130,15 @@ export default function App() {
   };
 
   const loadNextFood = (excludeDisplay?: string) => {
-    // 1. 一瞬だけinputを非表示にしてキーボードのバッファを強制解放する
-    setIsInputVisible(false);
-
     const candidates = FOOD_LIST.filter((item) => item.display !== excludeDisplay);
     const randomIndex = Math.floor(Math.random() * candidates.length);
     setCurrentFood(candidates[randomIndex]);
     
-    setQuestionKey((prev) => prev + 1);
-
-    // 2. 数十ミリ秒後に新しいinputを再マウントし、自動でフォーカスを当てる
-    setTimeout(() => {
-      setIsInputVisible(true);
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.value = '';
-          inputRef.current.focus();
-        }
-      }, 20);
-    }, 40);
+    setInputValue('');
+    if (inputRef.current) {
+      inputRef.current.value = '';
+      inputRef.current.focus();
+    }
   };
 
   const triggerCorrectMark = () => {
@@ -167,8 +156,14 @@ export default function App() {
     setClearedCount(0);
     setTimeLeft(60);
     setShowCorrectMark(false);
-    loadNextFood();
+    setInputValue('');
+    const randomIndex = Math.floor(Math.random() * FOOD_LIST.length);
+    setCurrentFood(FOOD_LIST[randomIndex]);
     setGameState('playing');
+    
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
   };
 
   useEffect(() => {
@@ -188,23 +183,41 @@ export default function App() {
     return () => clearInterval(timer);
   }, [gameState]);
 
-  const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
-    const val = e.currentTarget.value;
-    const cleanInput = val.replace(/\s+/g, '');
-    const normalizedInput = toHiragana(cleanInput);
-    const normalizedDisplay = toHiragana(currentFood.display);
+  // 入力中の値の管理
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+  };
 
-    if (
-      normalizedInput === currentFood.reading ||
-      cleanInput === currentFood.display ||
-      normalizedInput === normalizedDisplay
-    ) {
-      setScore((prev) => prev + 10);
-      setClearedCount((prev) => prev + 1);
+  // エンターキー（確定キー）が押された時だけ判定する
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // 変換確定中のエンターは無視する（iOSでの二重発火防止）
+    if (e.nativeEvent.isComposing || isComposingRef.current) {
+      return;
+    }
 
-      e.currentTarget.value = '';
-      triggerCorrectMark();
-      loadNextFood(currentFood.display);
+    if (e.key === 'Enter') {
+      e.preventDefault(); // デフォルトの挙動を抑制
+
+      const cleanInput = inputValue.replace(/\s+/g, '');
+      const normalizedInput = toHiragana(cleanInput);
+      const normalizedDisplay = toHiragana(currentFood.display);
+
+      if (
+        normalizedInput === currentFood.reading ||
+        cleanInput === currentFood.display ||
+        normalizedInput === normalizedDisplay
+      ) {
+        setScore((prev) => prev + 10);
+        setClearedCount((prev) => prev + 1);
+
+        setInputValue('');
+        if (inputRef.current) {
+          inputRef.current.value = '';
+        }
+
+        triggerCorrectMark();
+        loadNextFood(currentFood.display);
+      }
     }
   };
 
@@ -244,7 +257,7 @@ export default function App() {
 
             <div className="prompt-area">
               {showCorrectMark && (
-                <div key={questionKey} className="correct-mark" aria-hidden="true">
+                <div className="correct-mark" aria-hidden="true">
                   〇
                 </div>
               )}
@@ -253,21 +266,22 @@ export default function App() {
             </div>
 
             <div className="input-area">
-              {isInputVisible && (
-                <input
-                  key={questionKey}
-                  ref={inputRef}
-                  type="text"
-                  className="flick-input"
-                  onInput={handleInput}
-                  inputMode="text"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  placeholder="ここに入力..."
-                />
-              )}
+              <input
+                ref={inputRef}
+                type="text"
+                className="flick-input"
+                value={inputValue}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                onCompositionStart={() => { isComposingRef.current = true; }}
+                onCompositionEnd={() => { isComposingRef.current = false; }}
+                inputMode="text"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                placeholder="入力して確定..."
+              />
             </div>
 
             <button
