@@ -118,6 +118,7 @@ export default function App() {
 
   const [showCorrectMark, setShowCorrectMark] = useState<boolean>(false);
   const [questionKey, setQuestionKey] = useState<number>(0);
+  const [isInputVisible, setIsInputVisible] = useState<boolean>(true); // 入発火用の安全スイッチ
 
   const inputRef = useRef<HTMLInputElement>(null);
   const markTimerRef = useRef<number | null>(null);
@@ -130,21 +131,26 @@ export default function App() {
   };
 
   const loadNextFood = (excludeDisplay?: string) => {
+    // 1. 一瞬だけinputを非表示にしてキーボードのバッファを強制解放する
+    setIsInputVisible(false);
+
     const candidates = FOOD_LIST.filter((item) => item.display !== excludeDisplay);
     const randomIndex = Math.floor(Math.random() * candidates.length);
     setCurrentFood(candidates[randomIndex]);
     
-    // 新しい入力欄へ切り替え
     setQuestionKey((prev) => prev + 1);
-  };
 
-  // 問題が変わるたびに自動でフォーカス（カーソル）を当てる
-  useEffect(() => {
-    if (gameState === 'playing' && inputRef.current) {
-      inputRef.current.value = '';
-      inputRef.current.focus();
-    }
-  }, [questionKey, gameState]);
+    // 2. 数十ミリ秒後に新しいinputを再マウントし、自動でフォーカスを当てる
+    setTimeout(() => {
+      setIsInputVisible(true);
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.value = '';
+          inputRef.current.focus();
+        }
+      }, 20);
+    }, 40);
+  };
 
   const triggerCorrectMark = () => {
     if (markTimerRef.current) {
@@ -247,19 +253,21 @@ export default function App() {
             </div>
 
             <div className="input-area">
-              <input
-                key={questionKey}
-                ref={inputRef}
-                type="text"
-                className="flick-input"
-                onInput={handleInput}
-                inputMode="text"
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck={false}
-                placeholder="ここに入力..."
-              />
+              {isInputVisible && (
+                <input
+                  key={questionKey}
+                  ref={inputRef}
+                  type="text"
+                  className="flick-input"
+                  onInput={handleInput}
+                  inputMode="text"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  placeholder="ここに入力..."
+                />
+              )}
             </div>
 
             <button
