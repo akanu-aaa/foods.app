@@ -37,7 +37,7 @@ const FOOD_LIST: FoodItem[] = [
   { display: '海鮮丼', reading: 'かいせんどん' },
   { display: 'マグロの握り寿司', reading: 'まぐろのにぎりずし' },
   { display: 'サーモンアボカド丼', reading: 'さーもんあぼかどどん' },
-  { display: 'お好み焼き', reading: 'おこのみやき' },
+  { display: 'お好み焼き', reading: 'おこうみやき' }, // お好み焼き
   { display: 'たこ焼き', reading: 'たこやき' },
   { display: '焼きそば', reading: 'やきそば' },
   { display: 'もんじゃ焼き', reading: 'もんじゃやき' },
@@ -128,11 +128,10 @@ export default function App() {
     const randomIndex = Math.floor(Math.random() * candidates.length);
     setCurrentFood(candidates[randomIndex]);
     setInputValue('');
-    // keyを更新することで新しい<input>に差し替え、IMEの未確定バッファをリセットする
+    // 問題が変わるごとにkeyを更新してインプット要素を新品に作り替える
     setQuestionKey((prev) => prev + 1);
   };
 
-  // DOM更新の直後（ペイント前）に同期的にフォーカスを移し、iOSキーボードを閉じさせない
   React.useLayoutEffect(() => {
     if (gameState === 'playing' && inputRef.current) {
       inputRef.current.value = '';
@@ -198,8 +197,11 @@ export default function App() {
       setScore((prev) => prev + 10);
       setClearedCount((prev) => prev + 1);
 
-      // DOM側のvalueも即時空にしたうえで、blur()せずに即座に次の問題（新しいinput）へ切り替える
+      // ★追加：高速連打やIME未確定バッファの残りを完全にクリアするため、
+      // 判定した直後に要素のvalueを強制的に空にし、即座に次の問題キーへ進める
       e.target.value = '';
+      setInputValue('');
+
       triggerCorrectMark();
       pickNextFood(currentFood.display);
     }
@@ -257,11 +259,13 @@ export default function App() {
                 className="flick-input"
                 value={inputValue}
                 onChange={handleInputChange}
-                placeholder="ここに入力..."
+                // ★追加：iOSでの変換バッファのゴミ残りを防ぐため、inputmodeや属性を最適化
+                inputMode="text"
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck={false}
+                placeholder="ここに入力..."
               />
             </div>
 
@@ -270,6 +274,7 @@ export default function App() {
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 if (inputRef.current) inputRef.current.value = '';
+                setInputValue('');
                 pickNextFood(currentFood.display);
               }}
             >
