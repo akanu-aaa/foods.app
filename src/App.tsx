@@ -116,12 +116,37 @@ export default function App() {
   const [currentFood, setCurrentFood] = useState<FoodItem>(FOOD_LIST[0]);
   const [inputValue, setInputValue] = useState<string>('');
   const [clearedCount, setClearedCount] = useState<number>(0);
+
+  // 追加: 正解の「〇」表示と、IME完全リセット用の問題キー
+  const [showCorrectMark, setShowCorrectMark] = useState<boolean>(false);
+  const [questionKey, setQuestionKey] = useState<number>(0);
+
   const inputRef = useRef<HTMLInputElement>(null);
+  const markTimerRef = useRef<number | null>(null);
 
   const pickNextFood = (excludeDisplay?: string) => {
     const candidates = FOOD_LIST.filter((item) => item.display !== excludeDisplay);
     const randomIndex = Math.floor(Math.random() * candidates.length);
     setCurrentFood(candidates[randomIndex]);
+    // input要素を強制的に再マウントさせてモバイルIMEの未確定文字を完全に消去する
+    setQuestionKey((prev) => prev + 1);
+  };
+
+  // 問題が切り替わるたびに新しいinputへフォーカスを当てる
+  useEffect(() => {
+    if (gameState === 'playing') {
+      inputRef.current?.focus();
+    }
+  }, [questionKey, gameState]);
+
+  const triggerCorrectMark = () => {
+    if (markTimerRef.current) {
+      window.clearTimeout(markTimerRef.current);
+    }
+    setShowCorrectMark(true);
+    markTimerRef.current = window.setTimeout(() => {
+      setShowCorrectMark(false);
+    }, 550);
   };
 
   const startGame = () => {
@@ -129,11 +154,9 @@ export default function App() {
     setClearedCount(0);
     setTimeLeft(60);
     setInputValue('');
+    setShowCorrectMark(false);
     pickNextFood();
     setGameState('playing');
-    setTimeout(() => {
-      inputRef.current?.focus();
-    }, 50);
   };
 
   useEffect(() => {
@@ -164,14 +187,17 @@ export default function App() {
     const val = e.target.value;
     setInputValue(val);
 
-    const normalizedInput = toHiragana(val.trim());
+    const cleanInput = val.replace(/\s+/g, '');
+    const normalizedInput = toHiragana(cleanInput);
+
     if (
       normalizedInput === currentFood.reading ||
-      val.trim() === currentFood.display
+      cleanInput === currentFood.display
     ) {
       setScore((prev) => prev + 10);
       setClearedCount((prev) => prev + 1);
       setInputValue('');
+      triggerCorrectMark();
       pickNextFood(currentFood.display);
     }
   };
@@ -211,12 +237,18 @@ export default function App() {
             </div>
 
             <div className="prompt-area">
+              {showCorrectMark && (
+                <div key={questionKey} className="correct-mark" aria-hidden="true">
+                  〇
+                </div>
+              )}
               <div className="food-display">{currentFood.display}</div>
               <div className="food-reading">{currentFood.reading}</div>
             </div>
 
             <div className="input-area">
               <input
+                key={questionKey}
                 ref={inputRef}
                 type="text"
                 className="flick-input"
@@ -235,7 +267,6 @@ export default function App() {
               onClick={() => {
                 setInputValue('');
                 pickNextFood(currentFood.display);
-                inputRef.current?.focus();
               }}
             >
               パスする（0点）

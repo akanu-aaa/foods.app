@@ -60,7 +60,7 @@ body {
 .title {
   font-size: 28px;
   font-weight: 800;
-  color: rgb(211, 67, 59) 32, 3);
+  color: rgb(211, 67, 59);
   margin-bottom: 12px;
 }
 
@@ -152,12 +152,48 @@ body {
 }
 
 .prompt-area {
+  position: relative;
   width: 100%;
   background: #f8fafc;
   border-radius: 18px;
   padding: 20px 12px;
   margin-bottom: 18px;
   border: 2px dashed #cbd5e1;
+  overflow: hidden;
+}
+
+/* 正解時の「〇」オーバーレイ */
+.correct-mark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 84px;
+  font-weight: 900;
+  color: rgba(239, 68, 68, 0.88);
+  pointer-events: none;
+  z-index: 10;
+  animation: popCircle 0.55s ease-out forwards;
+}
+
+@keyframes popCircle {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.05);
+  }
 }
 
 .food-display {
