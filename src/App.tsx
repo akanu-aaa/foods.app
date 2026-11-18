@@ -37,7 +37,7 @@ const FOOD_LIST: FoodItem[] = [
   { display: '海鮮丼', reading: 'かいせんどん' },
   { display: 'マグロの握り寿司', reading: 'まぐろのにぎりずし' },
   { display: 'サーモンアボカド丼', reading: 'さーもんあぼかどどん' },
-  { display: 'お好み焼き', reading: 'おこうみやき' }, // お好み焼き
+  { display: 'お好み焼き', reading: 'おこのみやき' },
   { display: 'たこ焼き', reading: 'たこやき' },
   { display: '焼きそば', reading: 'やきそば' },
   { display: 'もんじゃ焼き', reading: 'もんじゃやき' },
@@ -123,12 +123,19 @@ export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const markTimerRef = useRef<number | null>(null);
 
+  // カタカナをひらがなに変換するヘルパー
+  const toHiragana = (str: string) => {
+    return str.replace(/[\u30a1-\u30f6]/g, (match) => {
+      const chr = match.charCodeAt(0) - 0x60;
+      return String.fromCharCode(chr);
+    });
+  };
+
   const pickNextFood = (excludeDisplay?: string) => {
     const candidates = FOOD_LIST.filter((item) => item.display !== excludeDisplay);
     const randomIndex = Math.floor(Math.random() * candidates.length);
     setCurrentFood(candidates[randomIndex]);
     setInputValue('');
-    // 問題が変わるごとにkeyを更新してインプット要素を新品に作り替える
     setQuestionKey((prev) => prev + 1);
   };
 
@@ -176,29 +183,24 @@ export default function App() {
     return () => clearInterval(timer);
   }, [gameState]);
 
-  const toHiragana = (str: string) => {
-    return str.replace(/[\u30a1-\u30f6]/g, (match) => {
-      const chr = match.charCodeAt(0) - 0x60;
-      return String.fromCharCode(chr);
-    });
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setInputValue(val);
 
     const cleanInput = val.replace(/\s+/g, '');
     const normalizedInput = toHiragana(cleanInput);
+    const normalizedDisplay = toHiragana(currentFood.display);
 
+    // ひらがな読みに一致するか、あるいはカタカナ表記そのものが入力された場合も正解とする
     if (
       normalizedInput === currentFood.reading ||
-      cleanInput === currentFood.display
+      cleanInput === currentFood.display ||
+      normalizedInput === normalizedDisplay
     ) {
       setScore((prev) => prev + 10);
       setClearedCount((prev) => prev + 1);
 
-      // ★追加：高速連打やIME未確定バッファの残りを完全にクリアするため、
-      // 判定した直後に要素のvalueを強制的に空にし、即座に次の問題キーへ進める
+      // 入力値とDOM要素の値を確実に空にする
       e.target.value = '';
       setInputValue('');
 
@@ -259,7 +261,6 @@ export default function App() {
                 className="flick-input"
                 value={inputValue}
                 onChange={handleInputChange}
-                // ★追加：iOSでの変換バッファのゴミ残りを防ぐため、inputmodeや属性を最適化
                 inputMode="text"
                 autoComplete="off"
                 autoCorrect="off"
