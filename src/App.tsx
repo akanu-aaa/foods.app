@@ -114,7 +114,6 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState<number>(60);
   const [score, setScore] = useState<number>(0);
   const [currentFood, setCurrentFood] = useState<FoodItem>(FOOD_LIST[0]);
-  const [inputValue, setInputValue] = useState<string>('');
   const [clearedCount, setClearedCount] = useState<number>(0);
 
   const [showCorrectMark, setShowCorrectMark] = useState<boolean>(false);
@@ -122,7 +121,6 @@ export default function App() {
 
   const inputRef = useRef<HTMLInputElement>(null);
   const markTimerRef = useRef<number | null>(null);
-  const isComposingRef = useRef<boolean>(false); // IME変換中フラグ
 
   const toHiragana = (str: string) => {
     return str.replace(/[\u30a1-\u30f6]/g, (match) => {
@@ -135,14 +133,13 @@ export default function App() {
     const candidates = FOOD_LIST.filter((item) => item.display !== excludeDisplay);
     const randomIndex = Math.floor(Math.random() * candidates.length);
     setCurrentFood(candidates[randomIndex]);
-    setInputValue('');
+    // keyを変更して入力欄のDOMを完全に新品に置き換える
     setQuestionKey((prev) => prev + 1);
   };
 
-  React.useLayoutEffect(() => {
+  // 描画直後に新しい入力欄へフォーカス
+  useEffect(() => {
     if (gameState === 'playing' && inputRef.current) {
-      inputRef.current.value = '';
-      setInputValue('');
       inputRef.current.focus();
     }
   }, [questionKey, gameState]);
@@ -161,7 +158,6 @@ export default function App() {
     setScore(0);
     setClearedCount(0);
     setTimeLeft(60);
-    setInputValue('');
     setShowCorrectMark(false);
     pickNextFood();
     setGameState('playing');
@@ -184,8 +180,9 @@ export default function App() {
     return () => clearInterval(timer);
   }, [gameState]);
 
-  // 正解チェックの共通関数
-  const checkAndProcessInput = (val: string) => {
+  // 入力値の監視（非制御コンポーネントに近いアプローチ）
+  const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
+    const val = e.currentTarget.value;
     const cleanInput = val.replace(/\s+/g, '');
     const normalizedInput = toHiragana(cleanInput);
     const normalizedDisplay = toHiragana(currentFood.display);
@@ -198,46 +195,11 @@ export default function App() {
       setScore((prev) => prev + 10);
       setClearedCount((prev) => prev + 1);
 
-      // DOMとステートを完全に空にする
-      if (inputRef.current) {
-        inputRef.current.value = '';
-      }
-      setInputValue('');
-
+      // 正解した瞬間にDOM要素の値を強制クリアして次へ
+      e.currentTarget.value = '';
       triggerCorrectMark();
       pickNextFood(currentFood.display);
-
-      // iPhoneのキーボードバッファ残留を防ぐため、次フレームでもう一度強制クリアを予約
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.value = '';
-          setInputValue('');
-        }
-      }, 10);
     }
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setInputValue(val);
-
-    // IME変換中（未確定状態）でなければ即座に判定
-    if (!isComposingRef.current) {
-      checkAndProcessInput(val);
-    }
-  };
-
-  // IME変換が始まったとき
-  const handleCompositionStart = () => {
-    isComposingRef.current = true;
-  };
-
-  // IME変換が確定したとき（iPhoneで一番文字が残りやすいタイミング）
-  const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
-    isComposingRef.current = false;
-    const val = e.currentTarget.value;
-    setInputValue(val);
-    checkAndProcessInput(val);
   };
 
   return (
@@ -264,4 +226,72 @@ export default function App() {
         {gameState === 'playing' && (
           <div className="screen play-screen">
             <div className="status-bar">
-              <div className={
+              <div className={`stat-box ${timeLeft <= 10 ? 'urgent' : ''}`}>
+                <span className="stat-label">残り時間</span>
+                <span className="stat-value">{timeLeft}秒</span>
+              </div>
+              <div className="stat-box">
+                <span className="stat-label">スコア</span>
+                <span className="stat-value">{score}点</span>
+              </div>
+            </div>
+
+            <div className="prompt-area">
+              {showCorrectMark && (
+                <div key={questionKey} className="correct-mark" aria-hidden="true">
+                  〇
+                </div>
+              )}
+              <div className="food-display">{currentFood.display}</div>
+              <div className="food-reading">{currentFood.reading}</div>
+            </div>
+
+            <div className="input-area">
+              {/* keyを変更することで正解時に古いinput要素を完全破棄し、新しい綺麗なinputを生成する */}
+              <input
+                key={questionKey}
+                ref={inputRef}
+                type="text"
+                className="flick-input"
+                onInput={handleInput}
+                inputMode="text"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                placeholder="ここに入力..."
+              />
+            </div>
+
+            <button
+              className="skip-btn"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                pickNextFood(currentFood.display);
+              }}
+            >
+              パスする（0点）
+            </button>
+          </div>
+        )}
+
+        {gameState === 'result' && (
+          <div className="screen result-screen">
+            <div className="badge">TIME UP!</div>
+            <h2 className="result-title">結果発表</h2>
+            <div className="final-score-box">
+              <div className="final-score">
+                {score}
+                <span>点</span>
+              </div>
+              <div className="cleared-info">クリア数：{clearedCount}品</div>
+            </div>
+            <button className="primary-btn" onClick={startGame}>
+              もう一度あそぶ
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
