@@ -128,13 +128,15 @@ export default function App() {
     const randomIndex = Math.floor(Math.random() * candidates.length);
     setCurrentFood(candidates[randomIndex]);
     setInputValue('');
-    // input要素を再マウントさせてIMEの内部バッファを強制クリア
+    // keyを更新することで新しい<input>に差し替え、IMEの未確定バッファをリセットする
     setQuestionKey((prev) => prev + 1);
   };
 
-  useEffect(() => {
-    if (gameState === 'playing') {
-      inputRef.current?.focus();
+  // DOM更新の直後（ペイント前）に同期的にフォーカスを移し、iOSキーボードを閉じさせない
+  React.useLayoutEffect(() => {
+    if (gameState === 'playing' && inputRef.current) {
+      inputRef.current.value = '';
+      inputRef.current.focus();
     }
   }, [questionKey, gameState]);
 
@@ -195,16 +197,11 @@ export default function App() {
     ) {
       setScore((prev) => prev + 10);
       setClearedCount((prev) => prev + 1);
-      
-      // ★iPhone対策: 正解した瞬間に一度フォーカスを外してIMEのバッファを強制確定・リセットする
-      inputRef.current?.blur();
-      setInputValue('');
-      triggerCorrectMark();
 
-      // 少しだけ遅らせて次の問題へ切り替えることで確実に空欄にする
-      setTimeout(() => {
-        pickNextFood(currentFood.display);
-      }, 100);
+      // DOM側のvalueも即時空にしたうえで、blur()せずに即座に次の問題（新しいinput）へ切り替える
+      e.target.value = '';
+      triggerCorrectMark();
+      pickNextFood(currentFood.display);
     }
   };
 
@@ -270,9 +267,9 @@ export default function App() {
 
             <button
               className="skip-btn"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
-                inputRef.current?.blur();
-                setInputValue('');
+                if (inputRef.current) inputRef.current.value = '';
                 pickNextFood(currentFood.display);
               }}
             >
