@@ -298,3 +298,11 @@ body {
     padding: 32px 28px;
   }
 }
+/* 画面全体のデフォルトの隙間を消すリセット */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #9ca7b0; /* 背景が途切れたとき用の保険 */
+}
